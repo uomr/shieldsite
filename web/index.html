@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>ShieldSite - فحص الوصول</title>
+</head>
+<body>
+  <h1>احمِ موقعك من غرامات الـEAA وادعاءات الـADA</h1>
+  <p>فحص سريع 60 ثانية + خطوات إصلاح قابلة للنسخ</p>
+  <form id="scanForm">
+    <label for="url">رابط الموقع:</label>
+    <input type="url" id="url" name="url" required placeholder="https://example.com" />
+    <button type="submit">افحص موقعي الآن</button>
+  </form>
+  <pre id="result" style="white-space: pre-wrap; margin-top: 20px;"></pre>
+
+  <script>
+    const form = document.getElementById('scanForm');
+    const result = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      result.textContent = 'جارٍ الفحص... انتظر قليلاً.';
+      const url = form.url.value;
+
+      try {
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          let output = `فحص ${data.url} انتهى.\n\n`;
+          if(data.issues.length === 0){
+            output += 'لا توجد مشكلات واضحة في الوصول.';
+          } else {
+            data.issues.forEach((issue, i) => {
+              output += `${i + 1}. ${issue.message}\n   مكان: ${issue.selector}\n\n`;
+            });
+          }
+          result.textContent = output;
+        } else {
+          result.textContent = `خطأ: ${data.error}`;
+        }
+      } catch (err) {
+        result.textContent = 'فشل الاتصال بالخادم.';
+      }
+    });
+  </script>
+</body>
+</html>
