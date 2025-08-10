@@ -1,12 +1,18 @@
 const pa11y = require('pa11y');
 
 module.exports = async (req, res) => {
+    // تحقق من طريقة الطلب
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { url } = req.body;
+    // تحقق من وجود هيدر Authorization
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || authHeader !== `Bearer ${process.env.API_KEY}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
 
+    const { url } = req.body;
     if (!url) {
         return res.status(400).json({ error: 'URL is required' });
     }
