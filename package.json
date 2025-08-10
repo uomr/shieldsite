@@ -1,0 +1,22 @@
+{
+  "name": "shieldsite",
+  "version": "1.0.0",
+  "description": "\"# ShieldSite MVP\"",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "node api/server.js",
+    "dev": "nodemon api/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "nodemon": "^3.1.10",
+    "pa11y": "^9.0.0"
+  }
+}
