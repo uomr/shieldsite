@@ -1,8 +1,14 @@
 {
+  "version": 2,
   "functions": {
     "api/scan.js": {
       "memory": 1024,
-      "maxDuration": 20
+      "maxDuration": 25
     }
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
+    "PUPPETEER_EXECUTABLE_PATH": ""
   }
 }

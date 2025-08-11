@@ -1,50 +1,234 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ShieldSite - فحص الوصول</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      line-height: 1.6;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 2.2em;
+    }
+    .subtitle {
+      text-align: center;
+      color: #7f8c8d;
+      margin-bottom: 30px;
+      font-size: 1.1em;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    input[type="url"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+      transition: border-color 0.3s;
+    }
+    input[type="url"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      width: 100%;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      background: #bdc3c7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    #result {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+      max-height: 400px;
+      overflow-y: auto;
+      display: none;
+    }
+    .loading {
+      text-align: center;
+      color: #667eea;
+      font-weight: 600;
+    }
+    .error {
+      color: #e74c3c;
+      background: #fadbd8;
+      border-left: 4px solid #e74c3c;
+      padding: 15px;
+      margin-top: 15px;
+    }
+    .success {
+      color: #27ae60;
+      background: #d5f4e6;
+      border-left: 4px solid #27ae60;
+      padding: 15px;
+      margin-top: 15px;
+    }
+    .warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      color: #856404;
+      padding: 15px;
+      margin-top: 15px;
+    }
+  </style>
 </head>
 <body>
-  <h1>احمِ موقعك من غرامات الـEAA وادعاءات الـADA</h1>
-  <p>فحص سريع 60 ثانية + خطوات إصلاح قابلة للنسخ</p>
-  <form id="scanForm">
-    <label for="url">رابط الموقع:</label>
-    <input type="url" id="url" name="url" required placeholder="https://example.com" />
-    <button type="submit">افحص موقعي الآن</button>
-  </form>
-  <pre id="result" style="white-space: pre-wrap; margin-top: 20px;"></pre>
+  <div class="container">
+    <h1>🛡️ ShieldSite</h1>
+    <p class="subtitle">احمِ موقعك من غرامات الـEAA وادعاءات الـADA<br>فحص سريع 60 ثانية + خطوات إصلاح قابلة للنسخ</p>
+    
+    <form id="scanForm">
+      <div class="form-group">
+        <label for="url">🔗 رابط الموقع للفحص:</label>
+        <input type="url" id="url" name="url" required placeholder="https://example.com" />
+      </div>
+      <button type="submit" id="submitBtn">🔍 افحص موقعي الآن</button>
+    </form>
+    
+    <div id="result"></div>
+  </div>
 
   <script>
     const form = document.getElementById('scanForm');
     const result = document.getElementById('result');
+    const submitBtn = document.getElementById('submitBtn');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      result.textContent = 'جارٍ الفحص... انتظر قليلاً.';
-      const url = form.url.value;
+      
+      const url = form.url.value.trim();
+      if (!url) return;
+
+      // إعداد الواجهة للتحميل
+      result.style.display = 'block';
+      result.className = 'loading';
+      result.textContent = '⏳ جارٍ فحص الموقع... هذا قد يستغرق حتى 30 ثانية.';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ جاري الفحص...';
 
       try {
-        const res = await fetch('/api/scan', {
+        const response = await fetch('/api/scan', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json'
+            // ملاحظة: تم إزالة Authorization header لأن الكود لا يتطلبه في الواجهة
+          },
           body: JSON.stringify({ url })
         });
-        const data = await res.json();
-        if (res.ok) {
-          let output = `فحص ${data.url} انتهى.\n\n`;
-          if(data.issues.length === 0){
-            output += 'لا توجد مشكلات واضحة في الوصول.';
-          } else {
+        
+        const data = await response.json();
+
+        if (response.ok) {
+          result.className = 'success';
+          let output = `✅ تم فحص ${data.url} بنجاح!\n`;
+          output += `📊 إجمالي المشكلات المكتشفة: ${data.totalIssues || 0}\n`;
+          output += `⏰ وقت الفحص: ${new Date(data.scanTime).toLocaleString('ar-SA')}\n\n`;
+
+          if (data.issues && data.issues.length > 0) {
+            output += '🔍 أهم المشكلات المكتشفة (أول 5 مشكلات):\n';
+            output += '='.repeat(50) + '\n\n';
+            
             data.issues.forEach((issue, i) => {
-              output += `${i + 1}. ${issue.message}\n   مكان: ${issue.selector}\n\n`;
+              output += `${i + 1}. 🚨 ${issue.message}\n`;
+              if (issue.selector) {
+                output += `   📍 العنصر: ${issue.selector}\n`;
+              }
+              if (issue.context) {
+                output += `   📝 السياق: ${issue.context}\n`;
+              }
+              output += `   🏷️  نوع المشكلة: ${issue.type}\n`;
+              output += `   ⚙️  المحرك: ${issue.runner}\n\n`;
             });
+
+            if (data.totalIssues > 5) {
+              output += `\n⚠️ تنبيه: تم عرض أول 5 مشكلات فقط من أصل ${data.totalIssues} مشكلة.\n`;
+            }
+          } else {
+            output += '🎉 ممتاز! لم يتم العثور على مشكلات واضحة في الوصول.\n';
+            output += 'ملاحظة: هذا لا يضمن الامتثال الكامل، ننصح بمراجعة يدوية إضافية.';
           }
+
           result.textContent = output;
         } else {
-          result.textContent = `خطأ: ${data.error}`;
+          result.className = 'error';
+          let errorMsg = '❌ حدث خطأ أثناء الفحص:\n\n';
+          
+          if (response.status === 401) {
+            errorMsg += '🔒 خطأ في التصريح - يرجى التحقق من إعدادات API.';
+          } else if (response.status === 400) {
+            errorMsg += '🌐 رابط غير صالح - تأكد من أن الرابط صحيح ويبدأ بـ https://';
+          } else if (response.status === 408) {
+            errorMsg += '⏰ انتهت مهلة الاتصال - الموقع قد يكون بطيئاً أو غير متاح.';
+          } else if (response.status === 500) {
+            errorMsg += '⚙️ خطأ في الخادم - ';
+            if (data.details === 'PA11Y_BROWSER_ERROR') {
+              errorMsg += 'مشكلة في إعدادات المتصفح على الخادم.';
+            } else {
+              errorMsg += (data.message || 'خطأ غير معروف');
+            }
+          } else {
+            errorMsg += `📝 ${data.error || 'خطأ غير محدد'}`;
+          }
+          
+          result.textContent = errorMsg;
         }
-      } catch (err) {
-        result.textContent = 'فشل الاتصال بالخادم.';
+      } catch (error) {
+        result.className = 'error';
+        result.textContent = `💥 فشل الاتصال بالخادم:\n${error.message}\n\nتأكد من اتصالك بالإنترنت وحاول مرة أخرى.`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🔍 افحص موقعي الآن';
+      }
+    });
+
+    // التحقق من صحة URL أثناء الكتابة
+    document.getElementById('url').addEventListener('input', function(e) {
+      const url = e.target.value;
+      if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+        e.target.setCustomValidity('يرجى إدخال رابط صحيح يبدأ بـ https:// أو http://');
+      } else {
+        e.target.setCustomValidity('');
       }
     });
   </script>

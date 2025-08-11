@@ -1,16 +1,24 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "# ShieldSite MVP",
+  "description": "Website accessibility scanning service",
   "main": "index.js",
+  "type": "commonjs",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "start": "node api/server.js",
-    "dev": "nodemon api/server.js"
+    "dev": "nodemon api/server.js",
+    "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "pa11y": "^9.0.0"
-  }
+    "pa11y": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": ["accessibility", "a11y", "ada", "eaa", "web-scanning"],
+  "author": "OMAR",
+  "license": "MIT"
 }
