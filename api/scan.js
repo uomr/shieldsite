@@ -16,14 +16,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    /**
-     * ملاحظات مهمة:
-     * - نستخدم only runner: axe لتجنب محاولة تشغيل Chromium
-     * - نوقف أي إعدادات تنتج محاولات fetch من Puppeteer
-     */
     const results = await pa11y(url, {
       runners: ['axe'],
-      browser: false // هذا يمنع pa11y من محاولة تشغيل متصفح
+      browser: false // يمنع تشغيل Chromium
     });
 
     const issues = (results.issues || []).slice(0, 5).map(issue => ({
