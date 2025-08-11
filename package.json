@@ -1,7 +1,7 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "Website accessibility scanning service",
+  "description": "Website accessibility scanning service using axe-core",
   "main": "index.js",
   "type": "commonjs",
   "directories": {
@@ -13,12 +13,13 @@
     "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "pa11y": "^7.0.0"
+    "axe-core": "^4.8.2",
+    "jsdom": "^22.1.0"
   },
   "engines": {
     "node": ">=16.0.0"
   },
-  "keywords": ["accessibility", "a11y", "ada", "eaa", "web-scanning"],
+  "keywords": ["accessibility", "a11y", "ada", "eaa", "web-scanning", "axe"],
   "author": "OMAR",
   "license": "MIT"
 }
