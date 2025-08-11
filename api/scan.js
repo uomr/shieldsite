@@ -1,6 +1,17 @@
-const pa11y = require('pa11y');
 const chromium = require('chrome-aws-lambda');
 const puppeteer = require('puppeteer-core');
+
+// تكوين مخصص لـ pa11y
+const pa11y = require('pa11y');
+const pa11yWithChrome = pa11y.defaults({
+    browser: puppeteer,
+    chromeLaunchConfig: {
+        executablePath: process.env.CHROME_EXECUTABLE_PATH || chromium.executablePath,
+        args: chromium.args,
+        headless: true,
+        ignoreHTTPSErrors: true
+    }
+});
 
 module.exports = async (req, res) => {
     // تحقق من طريقة الطلب
@@ -20,23 +31,18 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // تهيئة المتصفح باستخدام chrome-aws-lambda
-        const browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath,
-            headless: chromium.headless,
-        });
-
-        const rawResults = await pa11y(url, { 
-            reporter: 'json', 
+        // استخدام pa11y مع التكوين المخصص
+        const rawResults = await pa11yWithChrome(url, {
+            reporter: 'json',
             timeout: 30000,
-            browser: browser,
-            chromeLaunchConfig: {
-                executablePath: await chromium.executablePath,
-                args: chromium.args,
-                headless: chromium.headless,
-            }
+            ignore: [
+                'notice',
+                'warning'
+            ],
+            wait: 1000,
+            actions: [
+                'wait for element #content to be visible'
+            ]
         });
         const cleanedIssues = rawResults.issues.map(issue => ({
             code: issue.code,
@@ -46,10 +52,10 @@ module.exports = async (req, res) => {
         res.status(200).json({ url: rawResults.pageUrl, issues: cleanedIssues });
     } catch (error) {
         console.error('Error details:', error);
-        res.status(500).json({ error: error.message });
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
+        res.status(500).json({ 
+            error: error.message,
+            stack: error.stack,
+            details: 'Error occurred while running accessibility check'
+        });
     }
 };
