@@ -1,7 +1,7 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "\"# ShieldSite MVP\"",
+  "description": "# ShieldSite MVP",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -10,7 +10,8 @@
     "start": "node api/server.js",
     "dev": "nodemon api/server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "dependencies": {
+    "puppeteer-core": "^22.11.0",
+    "@sparticuz/chromium": "^123.0.0"
+  }
 }
