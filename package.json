@@ -1,7 +1,7 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "Website accessibility scanning service using axe-core",
+  "description": "Simple website accessibility scanning service",
   "main": "index.js",
   "type": "commonjs",
   "directories": {
@@ -12,9 +12,6 @@
     "dev": "nodemon api/server.js",
     "build": "echo 'No build step required'"
   },
-  "dependencies": {
-    "jsdom": "^22.1.0"
-  },
   "engines": {
     "node": ">=16.0.0"
   },
@@ -23,8 +20,7 @@
     "a11y",
     "ada",
     "eaa",
-    "web-scanning",
-    "axe"
+    "web-scanning"
   ],
   "author": "OMAR",
   "license": "MIT"

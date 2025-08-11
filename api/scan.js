@@ -1,9 +1,5 @@
-// حل بسيط ومضمون باستخدام HTML_CodeSniffer + jsdom
-const { JSDOM } = require('jsdom');
 const https = require('https');
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 
 export default async function handler(req, res) {
   // إعداد CORS headers
@@ -37,8 +33,8 @@ export default async function handler(req, res) {
     const html = await fetchHTML(url);
     console.log(`HTML fetched successfully, length: ${html.length}`);
 
-    // تحليل HTML باستخدام قواعد بسيطة
-    const issues = await analyzeHTML(html, url);
+    // تحليل HTML باستخدام regex وstring parsing
+    const issues = analyzeHTMLSimple(html, url);
     console.log(`Scan completed. Found ${issues.length} potential issues`);
 
     const response = {
@@ -131,154 +127,190 @@ async function fetchHTML(url) {
   });
 }
 
-// تحليل HTML للبحث عن مشاكل الوصول
-async function analyzeHTML(html, url) {
+// تحليل HTML بطريقة بسيطة باستخدام regex
+function analyzeHTMLSimple(html, url) {
   const issues = [];
-  const { JSDOM } = require('jsdom');
   
   try {
-    const dom = new JSDOM(html, { url });
-    const document = dom.window.document;
+    // تحويل HTML للأحرف الصغيرة للبحث
+    const htmlLower = html.toLowerCase();
 
-    // فحص الصور بدون alt text
-    const images = document.querySelectorAll('img');
-    images.forEach((img, index) => {
-      if (!img.hasAttribute('alt') || img.getAttribute('alt').trim() === '') {
+    // 1. فحص الصور بدون alt text
+    const imgRegex = /<img[^>]*>/gi;
+    const images = html.match(imgRegex) || [];
+    let imgCount = 0;
+    
+    images.forEach(img => {
+      imgCount++;
+      if (!img.includes('alt=') || img.includes('alt=""') || img.includes("alt=''")) {
         issues.push({
           code: 'img-alt-missing',
-          message: 'Image missing alternative text',
-          selector: img.tagName.toLowerCase() + (img.id ? `#${img.id}` : '') + (img.className ? `.${img.className.split(' ')[0]}` : `[${index}]`),
-          context: img.outerHTML.substring(0, 100),
+          message: 'Image missing alternative text (alt attribute)',
+          selector: `img[${imgCount}]`,
+          context: img.substring(0, 100) + '...',
           type: 'error',
-          runner: 'custom'
+          runner: 'simple-scanner'
         });
       }
     });
 
-    // فحص العناوين (heading structure)
-    const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    let hasH1 = false;
-    headings.forEach(heading => {
-      if (heading.tagName === 'H1') {
-        if (hasH1) {
-          issues.push({
-            code: 'multiple-h1',
-            message: 'Multiple H1 headings found on page',
-            selector: heading.tagName.toLowerCase(),
-            context: heading.outerHTML.substring(0, 100),
-            type: 'warning',
-            runner: 'custom'
-          });
-        }
-        hasH1 = true;
-      }
-    });
-
-    if (!hasH1) {
+    // 2. فحص العناوين
+    const h1Regex = /<h1[^>]*>/gi;
+    const h1Count = (html.match(h1Regex) || []).length;
+    
+    if (h1Count === 0) {
       issues.push({
         code: 'no-h1',
-        message: 'Page missing H1 heading',
-        selector: 'html',
-        context: 'Document structure',
+        message: 'Page missing H1 heading for proper document structure',
+        selector: 'document',
+        context: 'Document structure analysis',
         type: 'warning',
-        runner: 'custom'
+        runner: 'simple-scanner'
+      });
+    } else if (h1Count > 1) {
+      issues.push({
+        code: 'multiple-h1',
+        message: `Multiple H1 headings found (${h1Count}). Should have only one H1 per page`,
+        selector: 'h1',
+        context: 'Document structure analysis',
+        type: 'warning',
+        runner: 'simple-scanner'
       });
     }
 
-    // فحص النماذج
-    const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"], textarea');
-    inputs.forEach((input, index) => {
-      const hasLabel = input.hasAttribute('aria-label') || 
-                      input.hasAttribute('aria-labelledby') ||
-                      document.querySelector(`label[for="${input.id}"]`) ||
-                      input.closest('label');
+    // 3. فحص النماذج
+    const inputRegex = /<input[^>]*type=["']?(text|email|password|search|tel|url)["']?[^>]*>/gi;
+    const inputs = html.match(inputRegex) || [];
+    let inputCount = 0;
+
+    inputs.forEach(input => {
+      inputCount++;
+      const hasLabel = input.includes('aria-label=') || 
+                      input.includes('aria-labelledby=') ||
+                      html.includes(`<label[^>]*for=["']?${input.match(/id=["']?([^"'\s>]+)/)?.[1] || 'no-id'}["']?`);
       
       if (!hasLabel) {
         issues.push({
           code: 'input-missing-label',
           message: 'Form input missing accessible label',
-          selector: input.tagName.toLowerCase() + (input.id ? `#${input.id}` : `[${index}]`),
-          context: input.outerHTML.substring(0, 100),
+          selector: `input[${inputCount}]`,
+          context: input.substring(0, 100) + '...',
           type: 'error',
-          runner: 'custom'
+          runner: 'simple-scanner'
         });
       }
     });
 
-    // فحص الروابط
-    const links = document.querySelectorAll('a[href]');
-    links.forEach((link, index) => {
-      const text = link.textContent.trim();
-      if (!text || text.toLowerCase().match(/^(click here|read more|more|here|link)$/)) {
+    // 4. فحص textarea
+    const textareaRegex = /<textarea[^>]*>/gi;
+    const textareas = html.match(textareaRegex) || [];
+    let textareaCount = 0;
+
+    textareas.forEach(textarea => {
+      textareaCount++;
+      if (!textarea.includes('aria-label=') && !textarea.includes('aria-labelledby=')) {
         issues.push({
-          code: 'link-unclear-purpose',
-          message: 'Link text is not descriptive',
-          selector: 'a' + (link.id ? `#${link.id}` : `[${index}]`),
-          context: link.outerHTML.substring(0, 100),
-          type: 'warning',
-          runner: 'custom'
+          code: 'textarea-missing-label',
+          message: 'Textarea missing accessible label',
+          selector: `textarea[${textareaCount}]`,
+          context: textarea.substring(0, 100) + '...',
+          type: 'error',
+          runner: 'simple-scanner'
         });
       }
     });
 
-    // فحص البنية الأساسية
-    if (!document.querySelector('html[lang]')) {
+    // 5. فحص البنية الأساسية
+    if (!htmlLower.includes('<html') || (!htmlLower.includes('lang=') && !htmlLower.includes('<html lang'))) {
       issues.push({
         code: 'html-lang-missing',
-        message: 'HTML element missing lang attribute',
+        message: 'HTML element missing lang attribute for screen readers',
         selector: 'html',
-        context: '<html>',
+        context: '<html> tag analysis',
         type: 'error',
-        runner: 'custom'
+        runner: 'simple-scanner'
       });
     }
 
-    if (!document.title || document.title.trim() === '') {
+    // 6. فحص العنوان
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    if (!titleMatch || !titleMatch[1] || titleMatch[1].trim() === '') {
       issues.push({
         code: 'title-missing',
-        message: 'Document missing title',
-        selector: 'head',
-        context: '<title>',
+        message: 'Document missing title or title is empty',
+        selector: 'head > title',
+        context: 'Document head analysis',
         type: 'error',
-        runner: 'custom'
+        runner: 'simple-scanner'
       });
     }
 
-    // فحص التباين (تحليل مبسط)
-    const elementsWithText = document.querySelectorAll('p, div, span, a, button, h1, h2, h3, h4, h5, h6');
-    let colorIssues = 0;
-    elementsWithText.forEach(el => {
-      const style = el.style;
-      if ((style.color && style.backgroundColor) || 
-          (style.color && style.color.includes('#fff')) ||
-          (style.backgroundColor && style.backgroundColor.includes('#fff'))) {
-        colorIssues++;
+    // 7. فحص الروابط
+    const linkRegex = /<a[^>]*href[^>]*>(.*?)<\/a>/gi;
+    const links = html.match(linkRegex) || [];
+    let linkCount = 0;
+
+    links.forEach(link => {
+      linkCount++;
+      const linkText = link.replace(/<[^>]*>/g, '').trim().toLowerCase();
+      if (!linkText || 
+          linkText === 'click here' || 
+          linkText === 'read more' || 
+          linkText === 'more' || 
+          linkText === 'here' ||
+          linkText === 'link') {
+        issues.push({
+          code: 'link-unclear-purpose',
+          message: 'Link text is not descriptive ("' + linkText + '")',
+          selector: `a[${linkCount}]`,
+          context: link.substring(0, 100) + '...',
+          type: 'warning',
+          runner: 'simple-scanner'
+        });
       }
     });
 
-    if (colorIssues > 0) {
-      issues.push({
-        code: 'color-contrast-potential',
-        message: `Potential color contrast issues detected on ${colorIssues} elements`,
-        selector: 'various',
-        context: 'Color combinations may not meet contrast requirements',
-        type: 'notice',
-        runner: 'custom'
-      });
-    }
+    // 8. فحص الأزرار
+    const buttonRegex = /<button[^>]*>(.*?)<\/button>/gi;
+    const buttons = html.match(buttonRegex) || [];
+    let buttonCount = 0;
 
-    dom.window.close();
+    buttons.forEach(button => {
+      buttonCount++;
+      const buttonText = button.replace(/<[^>]*>/g, '').trim();
+      if (!buttonText && !button.includes('aria-label=') && !button.includes('aria-labelledby=')) {
+        issues.push({
+          code: 'button-missing-text',
+          message: 'Button missing accessible text or label',
+          selector: `button[${buttonCount}]`,
+          context: button.substring(0, 100) + '...',
+          type: 'error',
+          runner: 'simple-scanner'
+        });
+      }
+    });
+
+    // 9. إضافة ملاحظة عن فحص محدود
+    issues.push({
+      code: 'scan-scope-notice',
+      message: 'This is a basic accessibility scan. Consider professional audit for comprehensive compliance',
+      selector: 'document',
+      context: 'Scan completed with simple HTML analysis',
+      type: 'notice',
+      runner: 'simple-scanner'
+    });
+
     return issues;
 
   } catch (error) {
     console.error('HTML analysis error:', error);
     return [{
       code: 'analysis-error',
-      message: 'Error during HTML analysis',
+      message: 'Error during HTML analysis: ' + error.message,
       selector: 'unknown',
-      context: error.message,
+      context: 'Scanner error',
       type: 'error',
-      runner: 'custom'
+      runner: 'simple-scanner'
     }];
   }
 }
