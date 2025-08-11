@@ -15,8 +15,10 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^2.2.0",
+    "chrome-aws-lambda": "^10.1.0",
     "express": "^5.1.0",
     "nodemon": "^3.1.10",
-    "pa11y": "^9.0.0"
+    "pa11y": "^9.0.0",
+    "puppeteer-core": "^10.4.0"
   }
 }

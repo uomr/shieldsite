@@ -1,4 +1,5 @@
 const pa11y = require('pa11y');
+const chromium = require('chrome-aws-lambda');
 
 module.exports = async (req, res) => {
     // تحقق من طريقة الطلب
@@ -18,7 +19,16 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const rawResults = await pa11y(url, { reporter: 'json', timeout: 30000 });
+        const rawResults = await pa11y(url, { 
+            reporter: 'json', 
+            timeout: 30000,
+            browser: await chromium.puppeteer.launch({
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath,
+                headless: chromium.headless,
+            })
+        });
         const cleanedIssues = rawResults.issues.map(issue => ({
             code: issue.code,
             message: issue.message,
