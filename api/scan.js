@@ -16,7 +16,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    // نستخدم فقط axe كـ runner لتجنب Chromium
     const results = await pa11y(url, { runners: ['axe'] });
+
     const topIssues = (results.issues || []).slice(0, 5).map(i => ({
       code: i.code,
       message: i.message,
