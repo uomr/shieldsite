@@ -1,5 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" }
-  ]
+  "functions": {
+    "api/scan.js": {
+      "memory": 1024,
+      "maxDuration": 20
+    }
+  }
 }
