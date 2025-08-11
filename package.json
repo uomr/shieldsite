@@ -13,13 +13,19 @@
     "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "axe-core": "^4.8.2",
     "jsdom": "^22.1.0"
   },
   "engines": {
     "node": ">=16.0.0"
   },
-  "keywords": ["accessibility", "a11y", "ada", "eaa", "web-scanning", "axe"],
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "ada",
+    "eaa",
+    "web-scanning",
+    "axe"
+  ],
   "author": "OMAR",
   "license": "MIT"
 }
