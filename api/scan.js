@@ -16,11 +16,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // تشغيل pa11y باستخدام axe-runner فقط (تجنب Chromium)
-    const results = await pa11y(url, { runners: ['axe'] });
+    /**
+     * ملاحظات مهمة:
+     * - نستخدم only runner: axe لتجنب محاولة تشغيل Chromium
+     * - نوقف أي إعدادات تنتج محاولات fetch من Puppeteer
+     */
+    const results = await pa11y(url, {
+      runners: ['axe'],
+      browser: false // هذا يمنع pa11y من محاولة تشغيل متصفح
+    });
 
-    // استخراج أهم 5 مشاكل
-    const topIssues = (results.issues || []).slice(0, 5).map(issue => ({
+    const issues = (results.issues || []).slice(0, 5).map(issue => ({
       code: issue.code,
       message: issue.message,
       selector: issue.selector,
@@ -29,7 +35,7 @@ export default async function handler(req, res) {
       runner: issue.runner
     }));
 
-    res.status(200).json({ url, topIssues, raw: results });
+    res.status(200).json({ url, issues });
   } catch (error) {
     console.error('pa11y error:', error);
     res.status(500).json({ error: error.message || 'Pa11y scan failed' });
