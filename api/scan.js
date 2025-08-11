@@ -1,5 +1,6 @@
 const pa11y = require('pa11y');
 const chromium = require('chrome-aws-lambda');
+const puppeteer = require('puppeteer-core');
 
 module.exports = async (req, res) => {
     // تحقق من طريقة الطلب
@@ -19,15 +20,23 @@ module.exports = async (req, res) => {
     }
 
     try {
+        // تهيئة المتصفح باستخدام chrome-aws-lambda
+        const browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath,
+            headless: chromium.headless,
+        });
+
         const rawResults = await pa11y(url, { 
             reporter: 'json', 
             timeout: 30000,
-            browser: await chromium.puppeteer.launch({
-                args: chromium.args,
-                defaultViewport: chromium.defaultViewport,
+            browser: browser,
+            chromeLaunchConfig: {
                 executablePath: await chromium.executablePath,
+                args: chromium.args,
                 headless: chromium.headless,
-            })
+            }
         });
         const cleanedIssues = rawResults.issues.map(issue => ({
             code: issue.code,
@@ -36,6 +45,11 @@ module.exports = async (req, res) => {
         }));
         res.status(200).json({ url: rawResults.pageUrl, issues: cleanedIssues });
     } catch (error) {
+        console.error('Error details:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
     }
 };
