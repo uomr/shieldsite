@@ -16,16 +16,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // نستخدم فقط axe كـ runner لتجنب Chromium
+    // تشغيل pa11y باستخدام axe-runner فقط (تجنب Chromium)
     const results = await pa11y(url, { runners: ['axe'] });
 
-    const topIssues = (results.issues || []).slice(0, 5).map(i => ({
-      code: i.code,
-      message: i.message,
-      selector: i.selector,
-      context: i.context,
-      type: i.type,
-      runner: i.runner
+    // استخراج أهم 5 مشاكل
+    const topIssues = (results.issues || []).slice(0, 5).map(issue => ({
+      code: issue.code,
+      message: issue.message,
+      selector: issue.selector,
+      context: issue.context,
+      type: issue.type,
+      runner: issue.runner
     }));
 
     res.status(200).json({ url, topIssues, raw: results });
