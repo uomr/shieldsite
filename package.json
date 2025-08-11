@@ -12,9 +12,5 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@sparticuz/chromium": "^138.0.2",
-    "puppeteer-core": "^10.4.0"
-  }
+  "license": "ISC"
 }
