@@ -11,7 +11,7 @@
     "dev": "nodemon api/server.js"
   },
   "dependencies": {
-    "puppeteer-core": "^22.11.0",
-    "@sparticuz/chromium": "^123.0.0"
+    "@sparticuz/chromium": "^123.0.1",
+    "puppeteer-core": "^22.15.0"
   }
 }
