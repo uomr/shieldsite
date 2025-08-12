@@ -1,15 +1,15 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "Simple website accessibility scanning service",
+  "description": "Simple website accessibility scanning service", 
+  "type": "module",
   "scripts": {
     "dev": "vercel dev"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "18.x"
   },
   "dependencies": {
-    "pa11y": "^9.0.0",
     "node-fetch": "^3.3.2"
   },
   "author": "OMAR",
