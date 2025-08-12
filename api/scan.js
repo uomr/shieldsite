@@ -1,316 +1,218 @@
-const https = require('https');
-const http = require('http');
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('scanForm');
+    const scanBtn = document.getElementById('scanBtn');
+    const btnText = document.querySelector('.btn-text');
+    const btnLoading = document.querySelector('.btn-loading');
+    const resultsContainer = document.getElementById('results');
+    const errorContainer = document.getElementById('error');
+    const retryBtn = document.getElementById('retryBtn');
+    const getFullReportBtn = document.getElementById('getFullReport');
 
-export default async function handler(req, res) {
-  // إعداد CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // التحقق من API Key
-  const authHeader = req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const { url } = req.body;
-  if (!url || !url.startsWith('http')) {
-    return res.status(400).json({ error: 'Valid URL required' });
-  }
-
-  try {
-    console.log(`Starting accessibility scan for: ${url}`);
-
-    // جلب محتوى الصفحة
-    const html = await fetchHTML(url);
-    console.log(`HTML fetched successfully, length: ${html.length}`);
-
-    // تحليل HTML باستخدام regex وstring parsing
-    const issues = analyzeHTMLSimple(html, url);
-    console.log(`Scan completed. Found ${issues.length} potential issues`);
-
-    const response = {
-      url: url,
-      issues: issues.slice(0, 5), // أول 5 مشاكل
-      totalIssues: issues.length,
-      scanTime: new Date().toISOString(),
-      summary: {
-        errors: issues.filter(i => i.type === 'error').length,
-        warnings: issues.filter(i => i.type === 'warning').length,
-        notices: issues.filter(i => i.type === 'notice').length
-      }
+    // Priority mapping for Arabic
+    const priorityMap = {
+        'error': { level: 'high', text: 'عالية', class: 'priority-high' },
+        'warning': { level: 'medium', text: 'متوسطة', class: 'priority-medium' },
+        'notice': { level: 'low', text: 'منخفضة', class: 'priority-low' }
     };
 
-    return res.status(200).json(response);
-
-  } catch (error) {
-    console.error('Scan error:', error.message);
-
-    if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
-      return res.status(408).json({
-        error: 'Request timeout',
-        message: 'The scan took too long to complete'
-      });
-    }
-
-    if (error.message.includes('ENOTFOUND') || error.message.includes('network')) {
-      return res.status(400).json({
-        error: 'Network error',
-        message: 'Unable to reach the specified URL'
-      });
-    }
-
-    return res.status(500).json({
-      error: 'Scan failed',
-      message: error.message || 'An error occurred during the accessibility scan'
-    });
-  }
-}
-
-// دالة لجلب محتوى HTML
-async function fetchHTML(url) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const client = urlObj.protocol === 'https:' ? https : http;
-    
-    const options = {
-      hostname: urlObj.hostname,
-      port: urlObj.port,
-      path: urlObj.pathname + urlObj.search,
-      method: 'GET',
-      headers: {
-        'User-Agent': 'ShieldSite-Scanner/1.0 (Accessibility Scanner)',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Connection': 'close'
-      },
-      timeout: 15000
+    // WCAG rule descriptions in Arabic
+    const ruleDescriptions = {
+        'color-contrast': 'تباين الألوان غير كافي',
+        'image-alt': 'الصور تفتقر للنص البديل',
+        'label': 'حقول الإدخال بدون تسميات',
+        'link-name': 'الروابط بدون أسماء وصفية',
+        'heading-order': 'ترتيب العناوين غير صحيح',
+        'landmark-one-main': 'المعالم الرئيسية مفقودة',
+        'page-has-heading-one': 'الصفحة تفتقر للعنوان الرئيسي',
+        'region': 'المحتوى خارج المناطق المحددة'
     };
 
-    const req = client.request(options, (res) => {
-      let data = '';
-      res.setEncoding('utf8');
+    form.addEventListener('submit', handleScan);
+    retryBtn.addEventListener('click', handleRetry);
+    getFullReportBtn.addEventListener('click', handleFullReport);
 
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
+    async function handleScan(e) {
+        e.preventDefault();
+        
+        const url = document.getElementById('url').value.trim();
+        const email = document.getElementById('email').value.trim();
 
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(data);
-        } else if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          fetchHTML(res.headers.location).then(resolve).catch(reject);
-        } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+        if (!url) {
+            showError('يرجى إدخال رابط صحيح');
+            return;
         }
-      });
-    });
 
-    req.on('error', (error) => {
-      reject(new Error(`Network error: ${error.message}`));
-    });
+        showLoading(true);
+        hideResults();
+        hideError();
 
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Request timeout'));
-    });
+        try {
+            const response = await fetch('/api/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url, email })
+            });
 
-    req.end();
-  });
-}
+            const data = await response.json();
 
-// تحليل HTML بطريقة بسيطة باستخدام regex
-function analyzeHTMLSimple(html, url) {
-  const issues = [];
-  
-  try {
-    // تحويل HTML للأحرف الصغيرة للبحث
-    const htmlLower = html.toLowerCase();
+            if (!response.ok) {
+                throw new Error(data.error || 'فشل في إجراء الفحص');
+            }
 
-    // 1. فحص الصور بدون alt text
-    const imgRegex = /<img[^>]*>/gi;
-    const images = html.match(imgRegex) || [];
-    let imgCount = 0;
-    
-    images.forEach(img => {
-      imgCount++;
-      if (!img.includes('alt=') || img.includes('alt=""') || img.includes("alt=''")) {
-        issues.push({
-          code: 'img-alt-missing',
-          message: 'Image missing alternative text (alt attribute)',
-          selector: `img[${imgCount}]`,
-          context: img.substring(0, 100) + '...',
-          type: 'error',
-          runner: 'simple-scanner'
-        });
-      }
-    });
-
-    // 2. فحص العناوين
-    const h1Regex = /<h1[^>]*>/gi;
-    const h1Count = (html.match(h1Regex) || []).length;
-    
-    if (h1Count === 0) {
-      issues.push({
-        code: 'no-h1',
-        message: 'Page missing H1 heading for proper document structure',
-        selector: 'document',
-        context: 'Document structure analysis',
-        type: 'warning',
-        runner: 'simple-scanner'
-      });
-    } else if (h1Count > 1) {
-      issues.push({
-        code: 'multiple-h1',
-        message: `Multiple H1 headings found (${h1Count}). Should have only one H1 per page`,
-        selector: 'h1',
-        context: 'Document structure analysis',
-        type: 'warning',
-        runner: 'simple-scanner'
-      });
+            displayResults(url, data);
+            
+        } catch (error) {
+            console.error('Scan error:', error);
+            showError(error.message || 'حدث خطأ غير متوقع أثناء الفحص');
+        } finally {
+            showLoading(false);
+        }
     }
 
-    // 3. فحص النماذج
-    const inputRegex = /<input[^>]*type=["']?(text|email|password|search|tel|url)["']?[^>]*>/gi;
-    const inputs = html.match(inputRegex) || [];
-    let inputCount = 0;
-
-    inputs.forEach(input => {
-      inputCount++;
-      const hasLabel = input.includes('aria-label=') || 
-                      input.includes('aria-labelledby=') ||
-                      html.includes(`<label[^>]*for=["']?${input.match(/id=["']?([^"'\s>]+)/)?.[1] || 'no-id'}["']?`);
-      
-      if (!hasLabel) {
-        issues.push({
-          code: 'input-missing-label',
-          message: 'Form input missing accessible label',
-          selector: `input[${inputCount}]`,
-          context: input.substring(0, 100) + '...',
-          type: 'error',
-          runner: 'simple-scanner'
-        });
-      }
-    });
-
-    // 4. فحص textarea
-    const textareaRegex = /<textarea[^>]*>/gi;
-    const textareas = html.match(textareaRegex) || [];
-    let textareaCount = 0;
-
-    textareas.forEach(textarea => {
-      textareaCount++;
-      if (!textarea.includes('aria-label=') && !textarea.includes('aria-labelledby=')) {
-        issues.push({
-          code: 'textarea-missing-label',
-          message: 'Textarea missing accessible label',
-          selector: `textarea[${textareaCount}]`,
-          context: textarea.substring(0, 100) + '...',
-          type: 'error',
-          runner: 'simple-scanner'
-        });
-      }
-    });
-
-    // 5. فحص البنية الأساسية
-    if (!htmlLower.includes('<html') || (!htmlLower.includes('lang=') && !htmlLower.includes('<html lang'))) {
-      issues.push({
-        code: 'html-lang-missing',
-        message: 'HTML element missing lang attribute for screen readers',
-        selector: 'html',
-        context: '<html> tag analysis',
-        type: 'error',
-        runner: 'simple-scanner'
-      });
+    function handleRetry() {
+        hideError();
+        const url = document.getElementById('url').value;
+        if (url) {
+            form.dispatchEvent(new Event('submit'));
+        }
     }
 
-    // 6. فحص العنوان
-    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-    if (!titleMatch || !titleMatch[1] || titleMatch[1].trim() === '') {
-      issues.push({
-        code: 'title-missing',
-        message: 'Document missing title or title is empty',
-        selector: 'head > title',
-        context: 'Document head analysis',
-        type: 'error',
-        runner: 'simple-scanner'
-      });
+    function handleFullReport() {
+        const email = document.getElementById('email').value;
+        const url = document.getElementById('url').value;
+        
+        if (!email) {
+            document.getElementById('email').focus();
+            alert('يرجى إدخال بريدك الإلكتروني للحصول على التقرير الكامل');
+            return;
+        }
+
+        // Here you would typically send a request to generate PDF report
+        alert('سيتم إرسال التقرير الكامل إلى بريدك الإلكتروني قريباً');
     }
 
-    // 7. فحص الروابط
-    const linkRegex = /<a[^>]*href[^>]*>(.*?)<\/a>/gi;
-    const links = html.match(linkRegex) || [];
-    let linkCount = 0;
+    function showLoading(show) {
+        scanBtn.disabled = show;
+        btnText.style.display = show ? 'none' : 'inline';
+        btnLoading.style.display = show ? 'inline' : 'none';
+    }
 
-    links.forEach(link => {
-      linkCount++;
-      const linkText = link.replace(/<[^>]*>/g, '').trim().toLowerCase();
-      if (!linkText || 
-          linkText === 'click here' || 
-          linkText === 'read more' || 
-          linkText === 'more' || 
-          linkText === 'here' ||
-          linkText === 'link') {
-        issues.push({
-          code: 'link-unclear-purpose',
-          message: 'Link text is not descriptive ("' + linkText + '")',
-          selector: `a[${linkCount}]`,
-          context: link.substring(0, 100) + '...',
-          type: 'warning',
-          runner: 'simple-scanner'
-        });
-      }
-    });
+    function displayResults(scannedUrl, data) {
+        const scannedUrlEl = document.getElementById('scannedUrl');
+        const scanTimeEl = document.getElementById('scanTime');
+        const issuesListEl = document.getElementById('issuesList');
 
-    // 8. فحص الأزرار
-    const buttonRegex = /<button[^>]*>(.*?)<\/button>/gi;
-    const buttons = html.match(buttonRegex) || [];
-    let buttonCount = 0;
+        // Set URL and time
+        scannedUrlEl.textContent = scannedUrl;
+        scanTimeEl.textContent = `تم الفحص: ${new Date().toLocaleString('ar-SA')}`;
 
-    buttons.forEach(button => {
-      buttonCount++;
-      const buttonText = button.replace(/<[^>]*>/g, '').trim();
-      if (!buttonText && !button.includes('aria-label=') && !button.includes('aria-labelledby=')) {
-        issues.push({
-          code: 'button-missing-text',
-          message: 'Button missing accessible text or label',
-          selector: `button[${buttonCount}]`,
-          context: button.substring(0, 100) + '...',
-          type: 'error',
-          runner: 'simple-scanner'
-        });
-      }
-    });
+        // Process results
+        const issues = data.top || [];
+        const totalIssues = data.raw?.results?.length || 0;
 
-    // 9. إضافة ملاحظة عن فحص محدود
-    issues.push({
-      code: 'scan-scope-notice',
-      message: 'This is a basic accessibility scan. Consider professional audit for comprehensive compliance',
-      selector: 'document',
-      context: 'Scan completed with simple HTML analysis',
-      type: 'notice',
-      runner: 'simple-scanner'
-    });
+        // Create summary
+        const summaryHtml = createSummary(issues, totalIssues);
+        
+        // Create issues list
+        const issuesHtml = issues.map((issue, index) => createIssueCard(issue, index + 1)).join('');
 
-    return issues;
+        issuesListEl.innerHTML = summaryHtml + issuesHtml;
+        
+        showResults();
+    }
 
-  } catch (error) {
-    console.error('HTML analysis error:', error);
-    return [{
-      code: 'analysis-error',
-      message: 'Error during HTML analysis: ' + error.message,
-      selector: 'unknown',
-      context: 'Scanner error',
-      type: 'error',
-      runner: 'simple-scanner'
-    }];
-  }
-}
+    function createSummary(issues, totalIssues) {
+        const priorities = {
+            high: issues.filter(i => priorityMap[i.type]?.level === 'high').length,
+            medium: issues.filter(i => priorityMap[i.type]?.level === 'medium').length,
+            low: issues.filter(i => priorityMap[i.type]?.level === 'low').length
+        };
+
+        return `
+            <div class="scan-summary">
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">${totalIssues}</div>
+                        <div class="stat-label">إجمالي المشاكل</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" style="color: #dc2626">${priorities.high}</div>
+                        <div class="stat-label">عالية الأولوية</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" style="color: #d97706">${priorities.medium}</div>
+                        <div class="stat-label">متوسطة الأولوية</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" style="color: #059669">${priorities.low}</div>
+                        <div class="stat-label">منخفضة الأولوية</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function createIssueCard(issue, index) {
+        const priority = priorityMap[issue.type] || { level: 'medium', text: 'متوسطة', class: 'priority-medium' };
+        const ruleTitle = ruleDescriptions[issue.code] || issue.code;
+        
+        return `
+            <div class="issue-card">
+                <div class="issue-header">
+                    <div class="issue-priority ${priority.class}">
+                        أولوية ${priority.text}
+                    </div>
+                    <div class="issue-title">
+                        <h3>${index}. ${ruleTitle}</h3>
+                        <div class="issue-code">كود القاعدة: ${issue.code}</div>
+                    </div>
+                </div>
+                <div class="issue-details">
+                    <div class="issue-message">
+                        <strong>وصف المشكلة:</strong> ${issue.message || 'لا يوجد وصف متاح'}
+                    </div>
+                    ${issue.context ? `
+                        <div class="issue-context">${escapeHtml(issue.context)}</div>
+                    ` : ''}
+                    ${issue.selector ? `
+                        <div class="issue-selector">
+                            <strong>العنصر المتأثر:</strong> ${issue.selector}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function showResults() {
+        resultsContainer.style.display = 'block';
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function hideResults() {
+        resultsContainer.style.display = 'none';
+    }
+
+    function showError(message) {
+        document.getElementById('errorText').textContent = message;
+        errorContainer.style.display = 'block';
+        errorContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function hideError() {
+        errorContainer.style.display = 'none';
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+});

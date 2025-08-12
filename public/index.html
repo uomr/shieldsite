@@ -1,33 +1,59 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🛡️ ShieldSite - فحص الوصول</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShieldSite - فحص إمكانية الوصول للمواقع</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="container">
+        <header class="header">
+            <h1>ShieldSite</h1>
+            <p class="subtitle">احمِ موقعك من غرامات الـEAA وادعاءات الـADA — فحص سريع 60 ثانية + خطوات إصلاح قابلة للنسخ</p>
+        </header>
 
-  <header>
-    <h1>🛡️ ShieldSite</h1>
-    <p>فحص الوصول لموقعك ضد معايير ADA وEAA</p>
-  </header>
+        <div class="scan-form">
+            <form id="scanForm">
+                <div class="form-group">
+                    <label for="url">رابط الموقع المراد فحصه:</label>
+                    <input type="url" id="url" name="url" placeholder="https://example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">البريد الإلكتروني (اختياري):</label>
+                    <input type="email" id="email" name="email" placeholder="your@email.com">
+                </div>
+                <button type="submit" id="scanBtn" class="cta-button">
+                    <span class="btn-text">افحص موقعي الآن</span>
+                    <span class="btn-loading" style="display: none;">جاري الفحص...</span>
+                </button>
+            </form>
+        </div>
 
-  <main class="container">
-    <form id="scanForm">
-      <label for="url">🔗 أدخل رابط الموقع:</label>
-      <input type="url" id="url" name="url" placeholder="https://example.com" required>
-      <button type="submit" id="submitBtn">🔍 افحص موقعي الآن</button>
-    </form>
+        <div id="results" class="results-container" style="display: none;">
+            <div class="results-header">
+                <h2>نتائج الفحص</h2>
+                <div class="scan-info">
+                    <span id="scannedUrl" class="scanned-url"></span>
+                    <span id="scanTime" class="scan-time"></span>
+                </div>
+            </div>
+            <div id="issuesList" class="issues-list"></div>
+            <div class="results-footer">
+                <p class="legal-note">⚠️ هذا التقرير للأغراض التوجيهية فقط. للحصول على تقرير قانوني كامل وخدمات الإصلاح، تواصل معنا.</p>
+                <button id="getFullReport" class="secondary-button">احصل على التقرير الكامل (PDF)</button>
+            </div>
+        </div>
 
-    <div id="loading" class="loading hidden">⏳ جاري الفحص...</div>
-    <div id="result" class="hidden"></div>
-  </main>
+        <div id="error" class="error-container" style="display: none;">
+            <div class="error-message">
+                <h3>حدث خطأ أثناء الفحص</h3>
+                <p id="errorText"></p>
+                <button id="retryBtn" class="secondary-button">إعادة المحاولة</button>
+            </div>
+        </div>
+    </div>
 
-  <footer>
-    <small>© 2025 ShieldSite</small>
-  </footer>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
