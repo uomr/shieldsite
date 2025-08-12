@@ -1,8 +1,8 @@
 // api/scan.js
 // CommonJS Compatible for Vercel + node-fetch v2
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // ==== CORS Headers ====
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');

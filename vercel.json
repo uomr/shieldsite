@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "functions": {
     "api/scan.mjs": {
       "memory": 1024,
