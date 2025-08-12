@@ -1,16 +1,17 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "Simple website accessibility scanning service",
+  "description": "Professional website accessibility scanning service",
   "scripts": {
-    "dev": "vercel dev"
-  },
-  "engines": {
-    "node": ">=16.0.0"
+    "dev": "vercel dev",
+    "build": "echo 'Build complete'",
+    "start": "vercel dev"
   },
   "dependencies": {
-    "pa11y": "^9.0.0"
+    "pa11y": "^9.0.0",
+    "puppeteer": "^21.0.0"
   },
-  "author": "OMAR",
-  "license": "MIT"
+  "engines": {
+    "node": "18.x"
+  }
 }
