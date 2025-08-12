@@ -9,7 +9,8 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "pa11y": "^9.0.0"
+    "pa11y": "^9.0.0",
+    "node-fetch": "^3.3.2"
   },
   "author": "OMAR",
   "license": "MIT"
