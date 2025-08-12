@@ -1,14 +1,19 @@
 {
-  "version": 2,
   "functions": {
     "api/scan.js": {
-      "memory": 1024,
-      "maxDuration": 25
+      "maxDuration": 60
     }
   },
-  "env": {
-    "NODE_ENV": "production",
-    "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
-    "PUPPETEER_EXECUTABLE_PATH": ""
-  }
+  "builds": [
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
 }
