@@ -184,7 +184,7 @@ async function performQuickScan(url) {
     return issues;
 
   } catch (error) {
-    // في حالة فشل الفحص، أرجع مشكلة واحدة للتأكد من عمل الAPI
+    // في حالة فل الفحص، أرجع مشكلة واحدة للتأكد من عمل الAPI
     console.error('Scan failed:', error.message);
     
     return [{
