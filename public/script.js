@@ -8,23 +8,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const retryBtn = document.getElementById('retryBtn');
     const getFullReportBtn = document.getElementById('getFullReport');
 
-    // Priority mapping for Arabic
     const priorityMap = {
-        'error': { level: 'high', text: 'عالية', class: 'priority-high' },
-        'warning': { level: 'medium', text: 'متوسطة', class: 'priority-medium' },
-        'notice': { level: 'low', text: 'منخفضة', class: 'priority-low' }
+        'error': { level: 'high', text: 'High', class: 'priority-high' },
+        'warning': { level: 'medium', text: 'Medium', class: 'priority-medium' },
+        'notice': { level: 'low', text: 'Low', class: 'priority-low' }
     };
 
-    // WCAG rule descriptions in Arabic
     const ruleDescriptions = {
-        'color-contrast': 'تباين الألوان غير كافي',
-        'image-alt': 'الصور تفتقر للنص البديل',
-        'label': 'حقول الإدخال بدون تسميات',
-        'link-name': 'الروابط بدون أسماء وصفية',
-        'heading-order': 'ترتيب العناوين غير صحيح',
-        'landmark-one-main': 'المعالم الرئيسية مفقودة',
-        'page-has-heading-one': 'الصفحة تفتقر للعنوان الرئيسي',
-        'region': 'المحتوى خارج المناطق المحددة'
+        'color-contrast': 'Insufficient color contrast',
+        'image-alt': 'Images missing alternative text',
+        'label': 'Input fields without labels',
+        'link-name': 'Links missing descriptive names',
+        'heading-order': 'Incorrect heading order',
+        'landmark-one-main': 'Main landmarks missing',
+        'page-has-heading-one': 'Page missing main heading',
+        'region': 'Content outside specified regions'
     };
 
     form.addEventListener('submit', handleScan);
@@ -33,12 +31,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function handleScan(e) {
         e.preventDefault();
-        
+
         const url = document.getElementById('url').value.trim();
         const email = document.getElementById('email').value.trim();
 
         if (!url) {
-            showError('يرجى إدخال رابط صحيح');
+            showError('Please enter a valid URL');
             return;
         }
 
@@ -49,23 +47,26 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/api/scan', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url, email })
             });
 
-            const data = await response.json();
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                throw new Error(`Server response is not valid JSON:\n${text}`);
+            }
 
             if (!response.ok) {
-                throw new Error(data.error || 'فشل في إجراء الفحص');
+                throw new Error(data.error || 'Scan failed');
             }
 
             displayResults(url, data);
-            
         } catch (error) {
             console.error('Scan error:', error);
-            showError(error.message || 'حدث خطأ غير متوقع أثناء الفحص');
+            showError(error.message || 'Unexpected error during scanning');
         } finally {
             showLoading(false);
         }
@@ -82,15 +83,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleFullReport() {
         const email = document.getElementById('email').value;
         const url = document.getElementById('url').value;
-        
+
         if (!email) {
             document.getElementById('email').focus();
-            alert('يرجى إدخال بريدك الإلكتروني للحصول على التقرير الكامل');
+            alert('Please enter your email to receive the full report');
             return;
         }
 
-        // Here you would typically send a request to generate PDF report
-        alert('سيتم إرسال التقرير الكامل إلى بريدك الإلكتروني قريباً');
+        alert('The full report will be sent to your email shortly');
     }
 
     function showLoading(show) {
@@ -104,22 +104,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const scanTimeEl = document.getElementById('scanTime');
         const issuesListEl = document.getElementById('issuesList');
 
-        // Set URL and time
         scannedUrlEl.textContent = scannedUrl;
-        scanTimeEl.textContent = `تم الفحص: ${new Date().toLocaleString('ar-SA')}`;
+        scanTimeEl.textContent = `Scanned at: ${new Date().toLocaleString()}`;
 
-        // Process results
-        const issues = data.top || [];
-        const totalIssues = data.raw?.results?.length || 0;
+        const issues = data.issues || [];
+        const totalIssues = data.totalIssues || 0;
 
-        // Create summary
         const summaryHtml = createSummary(issues, totalIssues);
-        
-        // Create issues list
         const issuesHtml = issues.map((issue, index) => createIssueCard(issue, index + 1)).join('');
 
         issuesListEl.innerHTML = summaryHtml + issuesHtml;
-        
         showResults();
     }
 
@@ -135,19 +129,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="summary-stats">
                     <div class="stat-item">
                         <div class="stat-number">${totalIssues}</div>
-                        <div class="stat-label">إجمالي المشاكل</div>
+                        <div class="stat-label">Total Issues</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-number" style="color: #dc2626">${priorities.high}</div>
-                        <div class="stat-label">عالية الأولوية</div>
+                        <div class="stat-label">High Priority</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-number" style="color: #d97706">${priorities.medium}</div>
-                        <div class="stat-label">متوسطة الأولوية</div>
+                        <div class="stat-label">Medium Priority</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-number" style="color: #059669">${priorities.low}</div>
-                        <div class="stat-label">منخفضة الأولوية</div>
+                        <div class="stat-label">Low Priority</div>
                     </div>
                 </div>
             </div>
@@ -155,32 +149,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function createIssueCard(issue, index) {
-        const priority = priorityMap[issue.type] || { level: 'medium', text: 'متوسطة', class: 'priority-medium' };
+        const priority = priorityMap[issue.type] || { level: 'medium', text: 'Medium', class: 'priority-medium' };
         const ruleTitle = ruleDescriptions[issue.code] || issue.code;
-        
+
         return `
             <div class="issue-card">
                 <div class="issue-header">
                     <div class="issue-priority ${priority.class}">
-                        أولوية ${priority.text}
+                        Priority: ${priority.text}
                     </div>
                     <div class="issue-title">
                         <h3>${index}. ${ruleTitle}</h3>
-                        <div class="issue-code">كود القاعدة: ${issue.code}</div>
+                        <div class="issue-code">Rule Code: ${issue.code}</div>
                     </div>
                 </div>
                 <div class="issue-details">
                     <div class="issue-message">
-                        <strong>وصف المشكلة:</strong> ${issue.message || 'لا يوجد وصف متاح'}
+                        <strong>Issue Description:</strong> ${issue.message || 'No description available'}
                     </div>
-                    ${issue.context ? `
-                        <div class="issue-context">${escapeHtml(issue.context)}</div>
-                    ` : ''}
-                    ${issue.selector ? `
-                        <div class="issue-selector">
-                            <strong>العنصر المتأثر:</strong> ${issue.selector}
-                        </div>
-                    ` : ''}
+                    ${issue.context ? `<div class="issue-context">${escapeHtml(issue.context)}</div>` : ''}
+                    ${issue.selector ? `<div class="issue-selector"><strong>Affected Element:</strong> ${issue.selector}</div>` : ''}
                 </div>
             </div>
         `;

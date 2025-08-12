@@ -1,59 +1,59 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShieldSite - فحص إمكانية الوصول للمواقع</title>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShieldSite - Website Accessibility Scan</title>
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>ShieldSite</h1>
-            <p class="subtitle">احمِ موقعك من غرامات الـEAA وادعاءات الـADA — فحص سريع 60 ثانية + خطوات إصلاح قابلة للنسخ</p>
-        </header>
+    <div class="container">
+        <header class="header">
+            <h1>ShieldSite</h1>
+            <p class="subtitle">Protect your site from EAA fines & ADA claims — 60-second quick scan + copy-paste fix steps</p>
+        </header>
 
-        <div class="scan-form">
-            <form id="scanForm">
-                <div class="form-group">
-                    <label for="url">رابط الموقع المراد فحصه:</label>
-                    <input type="url" id="url" name="url" placeholder="https://example.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="email">البريد الإلكتروني (اختياري):</label>
-                    <input type="email" id="email" name="email" placeholder="your@email.com">
-                </div>
-                <button type="submit" id="scanBtn" class="cta-button">
-                    <span class="btn-text">افحص موقعي الآن</span>
-                    <span class="btn-loading" style="display: none;">جاري الفحص...</span>
-                </button>
-            </form>
-        </div>
+        <div class="scan-form">
+            <form id="scanForm">
+                <div class="form-group">
+                    <label for="url">Website URL to scan:</label>
+                    <input type="url" id="url" name="url" placeholder="https://example.com" required />
+                </div>
+                <div class="form-group">
+                    <label for="email">Email (optional):</label>
+                    <input type="email" id="email" name="email" placeholder="your@email.com" />
+                </div>
+                <button type="submit" id="scanBtn" class="cta-button">
+                    <span class="btn-text">Scan My Site Now</span>
+                    <span class="btn-loading" style="display: none;">Scanning...</span>
+                </button>
+            </form>
+        </div>
 
-        <div id="results" class="results-container" style="display: none;">
-            <div class="results-header">
-                <h2>نتائج الفحص</h2>
-                <div class="scan-info">
-                    <span id="scannedUrl" class="scanned-url"></span>
-                    <span id="scanTime" class="scan-time"></span>
-                </div>
-            </div>
-            <div id="issuesList" class="issues-list"></div>
-            <div class="results-footer">
-                <p class="legal-note">⚠️ هذا التقرير للأغراض التوجيهية فقط. للحصول على تقرير قانوني كامل وخدمات الإصلاح، تواصل معنا.</p>
-                <button id="getFullReport" class="secondary-button">احصل على التقرير الكامل (PDF)</button>
-            </div>
-        </div>
+        <div id="results" class="results-container" style="display: none;">
+            <div class="results-header">
+                <h2>Scan Results</h2>
+                <div class="scan-info">
+                    <span id="scannedUrl" class="scanned-url"></span>
+                    <span id="scanTime" class="scan-time"></span>
+                </div>
+            </div>
+            <div id="issuesList" class="issues-list"></div>
+            <div class="results-footer">
+                <p class="legal-note">⚠️ This report is for guidance only. For a full legal report and remediation services, contact us.</p>
+                <button id="getFullReport" class="secondary-button">Get Full Report (PDF)</button>
+            </div>
+        </div>
 
-        <div id="error" class="error-container" style="display: none;">
-            <div class="error-message">
-                <h3>حدث خطأ أثناء الفحص</h3>
-                <p id="errorText"></p>
-                <button id="retryBtn" class="secondary-button">إعادة المحاولة</button>
-            </div>
-        </div>
-    </div>
+        <div id="error" class="error-container" style="display: none;">
+            <div class="error-message">
+                <h3>Error During Scan</h3>
+                <p id="errorText"></p>
+                <button id="retryBtn" class="secondary-button">Retry</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
