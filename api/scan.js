@@ -1,120 +1,120 @@
-// استخدام CommonJS بدلاً من ES6 modules
+// api/scan.js
+// CommonJS for Vercel compatibility
 const fetch = require('node-fetch');
 
 module.exports = async function handler(req, res) {
-  // CORS
+  // ---- CORS ----
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  const url = (req.body && req.body.url) || req.query.url;
-  
-  if (!url) {
-    return res.status(400).json({ 
+  // ---- Input Validation ----
+  const inputUrl = (req.body && req.body.url) || req.query.url;
+  if (!inputUrl) {
+    return sendJSON(res, 400, {
+      success: false,
       error: 'url_required',
-      message: 'Please enter a website URL'
+      message: 'Please provide a website URL (http or https)',
     });
   }
 
-  // تنظيف الرابط
-  let cleanUrl = url.trim();
-  if (!cleanUrl.startsWith('http')) {
+  // Normalize URL
+  let cleanUrl = inputUrl.trim();
+  if (!/^https?:\/\//i.test(cleanUrl)) {
     cleanUrl = `https://${cleanUrl}`;
   }
 
-  try {
-    console.log(`Scanning: ${cleanUrl}`);
+  console.log(`[SCAN] Starting scan for: ${cleanUrl}`);
 
-    // فحص حقيقي مبسط
+  try {
     const issues = await performQuickScan(cleanUrl);
 
-    const response = {
+    return sendJSON(res, 200, {
       success: true,
       url: cleanUrl,
       timestamp: new Date().toISOString(),
       totalIssues: issues.length,
-      issues: issues.slice(0, 5),
+      issues: issues.slice(0, 5), // top 5 issues
       summary: {
         high: issues.filter(i => i.priority === 'high').length,
         medium: issues.filter(i => i.priority === 'medium').length,
-        low: issues.filter(i => i.priority === 'low').length
-      }
-    };
+        low: issues.filter(i => i.priority === 'low').length,
+      },
+    });
 
-    return res.json(response);
+  } catch (err) {
+    console.error(`[SCAN ERROR] ${cleanUrl}:`, err);
 
-  } catch (error) {
-    console.error('Scan error:', error.message);
-    
-    return res.status(500).json({
+    return sendJSON(res, 500, {
       success: false,
       error: 'scan_failed',
-      message: 'Failed to scan website. Please try again.',
-      details: error.message
+      message: 'Failed to complete website scan',
+      details: err.message || 'Unknown error',
     });
   }
 };
 
-// فحص مبسط وسريع
+/**
+ * Perform a lightweight HTML accessibility scan
+ * designed for serverless restrictions (time/memory limits)
+ */
 async function performQuickScan(url) {
   const issues = [];
-  
+
   try {
-    // محاولة الوصول للموقع مع timeout قصير
+    // Timeout controller for fetch (8s hard limit)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
-    
+
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; ShieldSite/1.0)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
-      timeout: 8000
+      size: 2_000_000 // Limit download ~2MB
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
     }
-    
+
     const html = await response.text();
-    
-    // تحليل HTML للمشاكل الشائعة
-    
-    // 1. الصور بدون alt
-    const imgMatches = html.match(/<img[^>]*>/gi) || [];
+
+    // --- Accessibility checks ---
+    // 1. Images missing alt
+    const imgTags = html.match(/<img[^>]*>/gi) || [];
     let imagesWithoutAlt = 0;
-    imgMatches.forEach(img => {
-      if (!img.includes('alt=') || img.includes('alt=""') || img.includes("alt=''")) {
+    imgTags.forEach(img => {
+      if (!/alt=/i.test(img) || /alt\s*=\s*(""\s*|'')/i.test(img)) {
         imagesWithoutAlt++;
       }
     });
-    
     if (imagesWithoutAlt > 0) {
       issues.push({
         code: 'image-alt',
         type: 'error',
         priority: 'high',
         message: `Found ${imagesWithoutAlt} images missing alt text`,
-        context: '<img src="..." alt=""> or <img src="..."> without alt attribute',
+        context: '<img> without meaningful alt',
         selector: 'img[alt=""], img:not([alt])'
       });
     }
 
-    // 2. فحص العنوان الرئيسي H1
-    const h1Count = (html.match(/<h1[^>]*>/gi) || []).length;
+    // 2. H1 existence
+    const h1Count = (html.match(/<h1[\s>]/gi) || []).length;
     if (h1Count === 0) {
       issues.push({
         code: 'page-has-heading-one',
-        type: 'error', 
+        type: 'error',
         priority: 'high',
-        message: 'Page is missing main heading (H1)',
+        message: 'Page missing main H1 heading',
         context: 'Every page should have exactly one H1 heading',
         selector: 'h1'
       });
@@ -122,27 +122,27 @@ async function performQuickScan(url) {
       issues.push({
         code: 'heading-order',
         type: 'warning',
-        priority: 'medium', 
-        message: `Found ${h1Count} H1 headings - should be only one`,
-        context: 'Multiple H1 headings can confuse screen readers',
+        priority: 'medium',
+        message: `Found ${h1Count} H1 headings — should be only one`,
+        context: 'Multiple H1 elements may confuse users',
         selector: 'h1'
       });
     }
 
-    // 3. فحص الروابط الفارغة
+    // 3. Empty links
     const emptyLinks = (html.match(/<a[^>]*href[^>]*>\s*<\/a>/gi) || []).length;
     if (emptyLinks > 0) {
       issues.push({
         code: 'link-name',
         type: 'error',
         priority: 'high',
-        message: `Found ${emptyLinks} links with no text`,
+        message: `Found ${emptyLinks} links with no visible text`,
         context: 'Links must have descriptive text or aria-label',
         selector: 'a[href]:empty'
       });
     }
 
-    // 4. فحص الفورم inputs
+    // 4. Label check for inputs
     const inputs = (html.match(/<input[^>]*>/gi) || []).length;
     const labels = (html.match(/<label[^>]*>/gi) || []).length;
     if (inputs > labels && inputs > 0) {
@@ -150,50 +150,58 @@ async function performQuickScan(url) {
         code: 'label',
         type: 'error',
         priority: 'medium',
-        message: `Found ${inputs - labels} input fields possibly missing labels`,
+        message: `${inputs - labels} input fields may be missing labels`,
         context: 'Form inputs should have associated labels',
         selector: 'input:not([aria-label])'
       });
     }
 
-    // 5. فحص title
-    const hasTitle = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (!hasTitle || hasTitle[1].trim().length === 0) {
+    // 5. Title tag
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    if (!titleMatch || titleMatch[1].trim().length === 0) {
       issues.push({
         code: 'document-title',
         type: 'error',
         priority: 'high',
-        message: 'Page is missing or has empty title',
-        context: 'Page title is essential for SEO and accessibility',
+        message: 'Page is missing or has empty <title>',
+        context: 'Page title is essential for accessibility & SEO',
         selector: 'title'
       });
     }
 
-    // إضافة مشكلة عامة إذا لم نجد مشاكل (للتأكد من عمل الأداة)
+    // If nothing found
     if (issues.length === 0) {
       issues.push({
         code: 'manual-review',
         type: 'notice',
-        priority: 'low', 
-        message: 'Basic scan completed - manual review recommended',
-        context: 'Some accessibility issues require detailed manual testing',
+        priority: 'low',
+        message: 'Basic scan completed — manual review recommended',
+        context: 'Some issues require manual testing',
         selector: 'body'
       });
     }
 
     return issues;
 
-  } catch (error) {
-    // في حالة فل الفحص، أرجع مشكلة واحدة للتأكد من عمل الAPI
-    console.error('Scan failed:', error.message);
-    
+  } catch (err) {
+    console.error('[performQuickScan] Error:', err.message);
+    // Fallback issue if scan fails
     return [{
       code: 'scan-error',
       type: 'warning',
       priority: 'medium',
-      message: 'Unable to complete full scan of the website',
-      context: 'Website may have restrictions or be temporarily unavailable',
+      message: `Unable to scan: ${err.message}`,
+      context: 'Site may be down or blocking requests',
       selector: 'body'
     }];
   }
+}
+
+/**
+ * Helper: ensures JSON response formatting
+ */
+function sendJSON(res, status, obj) {
+  res.status(status);
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(obj));
 }
