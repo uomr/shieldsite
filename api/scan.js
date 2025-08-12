@@ -1,7 +1,7 @@
-// استخدام axe-core مباشرة بدلاً من pa11y
-import fetch from 'node-fetch';
+// استخدام CommonJS بدلاً من ES6 modules
+const fetch = require('node-fetch');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -29,19 +29,19 @@ export default async function handler(req, res) {
   try {
     console.log(`Scanning: ${cleanUrl}`);
 
-    // محاكاة فحص حقيقي - سنستبدلها بـ axe-core لاحقاً
-    const mockIssues = await simulateAccessibilityScan(cleanUrl);
+    // فحص حقيقي مبسط
+    const issues = await performQuickScan(cleanUrl);
 
     const response = {
       success: true,
       url: cleanUrl,
       timestamp: new Date().toISOString(),
-      totalIssues: mockIssues.length,
-      issues: mockIssues.slice(0, 5), // أهم 5 مشاكل
+      totalIssues: issues.length,
+      issues: issues.slice(0, 5),
       summary: {
-        high: mockIssues.filter(i => i.priority === 'high').length,
-        medium: mockIssues.filter(i => i.priority === 'medium').length,
-        low: mockIssues.filter(i => i.priority === 'low').length
+        high: issues.filter(i => i.priority === 'high').length,
+        medium: issues.filter(i => i.priority === 'medium').length,
+        low: issues.filter(i => i.priority === 'low').length
       }
     };
 
@@ -57,98 +57,126 @@ export default async function handler(req, res) {
       details: error.message
     });
   }
-}
+};
 
-// محاكاة فحص حقيقي بناءً على فحص أولي للموقع
-async function simulateAccessibilityScan(url) {
+// فحص مبسط وسريع
+async function performQuickScan(url) {
+  const issues = [];
+  
   try {
-    // فحص الموقع للحصول على HTML
+    // محاولة الوصول للموقع مع timeout قصير
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    
     const response = await fetch(url, {
-      timeout: 10000,
+      signal: controller.signal,
       headers: {
-        'User-Agent': 'ShieldSite-Scanner/1.0'
-      }
+        'User-Agent': 'Mozilla/5.0 (compatible; ShieldSite/1.0)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      timeout: 8000
     });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
     
     const html = await response.text();
     
-    // تحليل HTML للعثور على مشاكل شائعة
-    const issues = [];
+    // تحليل HTML للمشاكل الشائعة
     
-    // 1. فحص الصور بدون alt text
-    const imgWithoutAlt = (html.match(/<img(?![^>]*alt=)/g) || []).length;
-    if (imgWithoutAlt > 0) {
+    // 1. الصور بدون alt
+    const imgMatches = html.match(/<img[^>]*>/gi) || [];
+    let imagesWithoutAlt = 0;
+    imgMatches.forEach(img => {
+      if (!img.includes('alt=') || img.includes('alt=""') || img.includes("alt=''")) {
+        imagesWithoutAlt++;
+      }
+    });
+    
+    if (imagesWithoutAlt > 0) {
       issues.push({
         code: 'image-alt',
         type: 'error',
         priority: 'high',
-        message: `Found ${imgWithoutAlt} images without alt text`,
-        context: 'Images must have descriptive alt text for screen readers',
+        message: `Found ${imagesWithoutAlt} images missing alt text`,
+        context: '<img src="..." alt=""> or <img src="..."> without alt attribute',
         selector: 'img[alt=""], img:not([alt])'
       });
     }
 
-    // 2. فحص الروابط بدون نص وصفي
-    const emptyLinks = (html.match(/<a[^>]*href[^>]*>\s*<\/a>/g) || []).length;
+    // 2. فحص العنوان الرئيسي H1
+    const h1Count = (html.match(/<h1[^>]*>/gi) || []).length;
+    if (h1Count === 0) {
+      issues.push({
+        code: 'page-has-heading-one',
+        type: 'error', 
+        priority: 'high',
+        message: 'Page is missing main heading (H1)',
+        context: 'Every page should have exactly one H1 heading',
+        selector: 'h1'
+      });
+    } else if (h1Count > 1) {
+      issues.push({
+        code: 'heading-order',
+        type: 'warning',
+        priority: 'medium', 
+        message: `Found ${h1Count} H1 headings - should be only one`,
+        context: 'Multiple H1 headings can confuse screen readers',
+        selector: 'h1'
+      });
+    }
+
+    // 3. فحص الروابط الفارغة
+    const emptyLinks = (html.match(/<a[^>]*href[^>]*>\s*<\/a>/gi) || []).length;
     if (emptyLinks > 0) {
       issues.push({
         code: 'link-name',
         type: 'error',
         priority: 'high',
-        message: `Found ${emptyLinks} links with no descriptive text`,
+        message: `Found ${emptyLinks} links with no text`,
         context: 'Links must have descriptive text or aria-label',
-        selector: 'a:empty, a[href]:not([aria-label])'
+        selector: 'a[href]:empty'
       });
     }
 
-    // 3. فحص العناوين
-    const hasH1 = html.includes('<h1');
-    if (!hasH1) {
-      issues.push({
-        code: 'page-has-heading-one',
-        type: 'error',
-        priority: 'high',
-        message: 'Page is missing a main heading (H1)',
-        context: 'Each page should have exactly one H1 heading',
-        selector: 'h1'
-      });
-    }
-
-    // 4. فحص input fields بدون labels
-    const inputsCount = (html.match(/<input/g) || []).length;
-    const labelsCount = (html.match(/<label/g) || []).length;
-    if (inputsCount > labelsCount) {
+    // 4. فحص الفورم inputs
+    const inputs = (html.match(/<input[^>]*>/gi) || []).length;
+    const labels = (html.match(/<label[^>]*>/gi) || []).length;
+    if (inputs > labels && inputs > 0) {
       issues.push({
         code: 'label',
         type: 'error',
         priority: 'medium',
-        message: `Found ${inputsCount - labelsCount} input fields without proper labels`,
-        context: 'Form inputs must have associated labels',
-        selector: 'input:not([aria-label]):not([id]) + label'
+        message: `Found ${inputs - labels} input fields possibly missing labels`,
+        context: 'Form inputs should have associated labels',
+        selector: 'input:not([aria-label])'
       });
     }
 
-    // 5. فحص contrast (محاكاة)
-    const hasInlineStyles = html.includes('color:') || html.includes('background:');
-    if (hasInlineStyles) {
+    // 5. فحص title
+    const hasTitle = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (!hasTitle || hasTitle[1].trim().length === 0) {
       issues.push({
-        code: 'color-contrast',
-        type: 'warning',
-        priority: 'medium',
-        message: 'Potential color contrast issues detected',
-        context: 'Text and background colors must meet WCAG contrast requirements',
-        selector: '[style*="color"]'
+        code: 'document-title',
+        type: 'error',
+        priority: 'high',
+        message: 'Page is missing or has empty title',
+        context: 'Page title is essential for SEO and accessibility',
+        selector: 'title'
       });
     }
 
-    // إضافة مشاكل إضافية للمواقع التي لا تحتوي على مشاكل واضحة
+    // إضافة مشكلة عامة إذا لم نجد مشاكل (للتأكد من عمل الأداة)
     if (issues.length === 0) {
       issues.push({
-        code: 'general-review',
+        code: 'manual-review',
         type: 'notice',
-        priority: 'low',
-        message: 'Manual accessibility review recommended',
-        context: 'Some accessibility issues require manual testing',
+        priority: 'low', 
+        message: 'Basic scan completed - manual review recommended',
+        context: 'Some accessibility issues require detailed manual testing',
         selector: 'body'
       });
     }
@@ -156,13 +184,15 @@ async function simulateAccessibilityScan(url) {
     return issues;
 
   } catch (error) {
-    // إرجاع مشاكل افتراضية في حالة فشل الفحص
+    // في حالة فشل الفحص، أرجع مشكلة واحدة للتأكد من عمل الAPI
+    console.error('Scan failed:', error.message);
+    
     return [{
-      code: 'scan-incomplete',
+      code: 'scan-error',
       type: 'warning',
       priority: 'medium',
-      message: 'Partial scan completed - some issues may not be detected',
-      context: 'Website may have security restrictions that prevent full scanning',
+      message: 'Unable to complete full scan of the website',
+      context: 'Website may have restrictions or be temporarily unavailable',
       selector: 'body'
     }];
   }

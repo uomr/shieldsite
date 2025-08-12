@@ -2,7 +2,7 @@
   "name": "shieldsite",
   "version": "1.0.0",
   "description": "Simple website accessibility scanning service", 
-  "type": "module",
+
   "scripts": {
     "dev": "vercel dev"
   },
