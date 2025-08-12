@@ -1,9 +1,9 @@
 // api/scan.js
-// CommonJS for Vercel compatibility
+// CommonJS Compatible for Vercel + node-fetch v2
 const fetch = require('node-fetch');
 
 module.exports = async function handler(req, res) {
-  // ---- CORS ----
+  // ==== CORS Headers ====
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // ---- Input Validation ----
+  // ==== Input Validation ====
   const inputUrl = (req.body && req.body.url) || req.query.url;
   if (!inputUrl) {
     return sendJSON(res, 400, {
@@ -38,7 +38,7 @@ module.exports = async function handler(req, res) {
       url: cleanUrl,
       timestamp: new Date().toISOString(),
       totalIssues: issues.length,
-      issues: issues.slice(0, 5), // top 5 issues
+      issues: issues.slice(0, 5), // Top 5 issues
       summary: {
         high: issues.filter(i => i.priority === 'high').length,
         medium: issues.filter(i => i.priority === 'medium').length,
@@ -58,15 +58,15 @@ module.exports = async function handler(req, res) {
   }
 };
 
+
 /**
  * Perform a lightweight HTML accessibility scan
- * designed for serverless restrictions (time/memory limits)
  */
 async function performQuickScan(url) {
   const issues = [];
 
   try {
-    // Timeout controller for fetch (8s hard limit)
+    // Timeout controller
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -76,7 +76,7 @@ async function performQuickScan(url) {
         'User-Agent': 'Mozilla/5.0 (compatible; ShieldSite/1.0)',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
-      size: 2_000_000 // Limit download ~2MB
+      size: 2_000_000 // Limit download to ~2MB
     });
 
     clearTimeout(timeoutId);
@@ -88,7 +88,7 @@ async function performQuickScan(url) {
     const html = await response.text();
 
     // --- Accessibility checks ---
-    // 1. Images missing alt
+    // 1. Images without alt
     const imgTags = html.match(/<img[^>]*>/gi) || [];
     let imagesWithoutAlt = 0;
     imgTags.forEach(img => {
@@ -169,7 +169,7 @@ async function performQuickScan(url) {
       });
     }
 
-    // If nothing found
+    // If no issues found
     if (issues.length === 0) {
       issues.push({
         code: 'manual-review',
@@ -185,7 +185,6 @@ async function performQuickScan(url) {
 
   } catch (err) {
     console.error('[performQuickScan] Error:', err.message);
-    // Fallback issue if scan fails
     return [{
       code: 'scan-error',
       type: 'warning',
@@ -198,7 +197,7 @@ async function performQuickScan(url) {
 }
 
 /**
- * Helper: ensures JSON response formatting
+ * Helper: Ensures JSON response formatting
  */
 function sendJSON(res, status, obj) {
   res.status(status);

@@ -1,17 +1,17 @@
 {
   "name": "shieldsite",
   "version": "1.0.0",
-  "description": "Simple website accessibility scanning service", 
-
+  "description": "Simple website accessibility scanning service",
   "scripts": {
     "dev": "vercel dev"
   },
   "engines": {
     "node": "18.x"
   },
-  "dependencies": {
-    "node-fetch": "^3.3.2"
-  },
   "author": "OMAR",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "type": "module"
 }
